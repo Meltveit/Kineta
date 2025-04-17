@@ -1,0 +1,128 @@
+{
+    "networkID": "mainnet",
+    "dataDir": "./data",
+    
+    "p2p": {
+      "port": 6001,
+      "seedNodes": [
+        "ws://seed1.kineta.io:6001",
+        "ws://seed2.kineta.io:6001",
+        "ws://seed3.kineta.io:6001"
+      ],
+      "maxPeers": 20,
+      "minPeers": 8
+    },
+    
+    "blockchain": {
+      "initialDifficulty": 4,
+      "targetBlockTime": 123,
+      "maxBlockSize": 1000000,
+      "maxTransactionsPerBlock": 5000
+    },
+    
+    "mempool": {
+      "maxSize": 5000,
+      "maxSizeMB": 300,
+      "minFeeRate": 0.00001
+    },
+    
+    "economic": {
+      "inflation": {
+        "baseRate": 0.0025,
+        "adjustmentInterval": 123000,
+        "initialInflation": 0.02,
+        "maxInflation": 0.10
+      },
+      "gdpOracle": {
+        "updateInterval": 123000,
+        "consensusThreshold": 0.67,
+        "trustedSources": {
+          "imf": {
+            "name": "International Monetary Fund",
+            "publicKey": "04a5c13e04cd5e5348805e18cd52df732989f1ce97e2dda6a499570cef2a4ad2cc86dd95c2c756a9d41176062a5a8f3b92515c77183e53eb0678c290452a07ea58",
+            "weight": 1.0
+          },
+          "worldbank": {
+            "name": "World Bank",
+            "publicKey": "042ca80163764dd27202e3b7246bbebde9fc7a3fb95ef3f38a26e5c4c0bf2d70ef84349af773fc70fb5afc9c646e4dd61e5e490af4e7d988c7ecd97c0e8f799d26",
+            "weight": 1.0
+          },
+          "oecd": {
+            "name": "OECD",
+            "publicKey": "0448625ce1878fc4b02c27ebccd7c23c5c5f9e3fbe3b752ab68bd3d911b595a09ca32b29f11b4f3953c8559fa49ef422906b9615afe59acdcb4404dafbb232dc58",
+            "weight": 1.0
+          }
+        }
+      },
+      "reward": {
+        "initialSupply": 123456789,
+        "minReward": 0.001,
+        "developmentFund": 0.05
+      },
+      "fee": {
+        "developerFeeRate": 0.0002,
+        "minimumFee": 0.0001,
+        "baseFeeRate": 0.00001,
+        "adjustmentInterval": 10000
+      }
+    },
+    
+    "consensus": {
+      "proofOfWork": {
+        "maxThreads": 4,
+        "targetBlockTime": 123,
+        "initialDifficulty": 4
+      },
+      "difficulty": {
+        "targetBlockTime": 123,
+        "adjustmentInterval": 1008,
+        "maxAdjustmentFactor": 4,
+        "emergencyAdjustmentThreshold": 8,
+        "initialDifficulty": 4,
+        "minimumDifficulty": 1
+      }
+    },
+    
+    "storage": {
+      "database": {
+        "createIfMissing": true,
+        "errorIfExists": false,
+        "cacheSize": 8388608,
+        "compression": true
+      },
+      "chainStore": {
+        "pruneOldBlocks": false,
+        "pruneDepth": 1000,
+        "indexTransactions": true,
+        "indexAddresses": true
+      }
+    },
+    
+    "api": {
+      "enabled": true,
+      "port": 3000,
+      "enableHttps": false,
+      "httpsPort": 3001,
+      "sslCert": "",
+      "sslKey": "",
+      "enableRateLimit": true,
+      "maxRequestsPerMinute": 100,
+      "enableCors": true,
+      "requireAuth": false,
+      "apiKey": "",
+      "logFormat": "combined"
+    },
+    
+    "mining": {
+      "enabled": false,
+      "minerAddress": "",
+      "threads": 4
+    },
+    
+    "logging": {
+      "level": "info",
+      "console": true,
+      "file": true,
+      "filepath": "./logs/kineta.log"
+    }
+  }
