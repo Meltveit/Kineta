@@ -10,6 +10,7 @@
  */
 
 const EventEmitter = require('events');
+const { ECONOMIC_CONSTANTS } = require('./economic-parameters');
 
 // Developer address for fee collection
 const DEFAULT_DEVELOPER_ADDRESS = '04d46b3d51c20deb1d5dd3b6ea5cb4c474cede8600e423437b023f8ea7846547eca4a92a0c660caaac7c9b74c863c5c38686e83cf9e0152e36dd032b795df92f4a';
@@ -24,7 +25,7 @@ class FeeManager extends EventEmitter {
    * @param {string} options.developerAddress - Developer address for fees
    * @param {number} options.developerFeeRate - Developer fee rate (default: 0.0002)
    * @param {number} options.minimumFee - Minimum transaction fee (default: 0.0001)
-   * @param {number} options.baseFeeRate - Base fee rate per byte (default: 0.00001)
+   * @param {number} options.baseFeeRate - Base fee rate per byte (default: 0.002)
    * @param {number} options.adjustmentInterval - Fee adjustment interval in blocks
    * @param {object} options.blockchain - Blockchain reference (optional)
    */
@@ -32,9 +33,9 @@ class FeeManager extends EventEmitter {
     super();
     
     this.developerAddress = options.developerAddress || DEFAULT_DEVELOPER_ADDRESS;
-    this.developerFeeRate = options.developerFeeRate !== undefined ? options.developerFeeRate : 0.0002; // 0.02%
-    this.minimumFee = options.minimumFee !== undefined ? options.minimumFee : 0.0001; // Minimum 0.0001 KIN
-    this.baseFeeRate = options.baseFeeRate !== undefined ? options.baseFeeRate : 0.00001; // 0.00001 KIN per byte
+    this.developerFeeRate = options.developerFeeRate !== undefined ? options.developerFeeRate : ECONOMIC_CONSTANTS.FEES.DEVELOPER_FEE_RATE;
+    this.minimumFee = options.minimumFee !== undefined ? options.minimumFee : ECONOMIC_CONSTANTS.FEES.MIN_TX_FEE;
+    this.baseFeeRate = options.baseFeeRate !== undefined ? options.baseFeeRate : ECONOMIC_CONSTANTS.FEES.BASE_TX_FEE_RATE;
     this.adjustmentInterval = options.adjustmentInterval || 10000; // Fee adjustment interval
     this.blockchain = options.blockchain || null;
     
@@ -45,9 +46,9 @@ class FeeManager extends EventEmitter {
     this.collectedDeveloperFees = 0;
     
     // Setup initial fee rates
-    this.regularTxFeeRate = 0.001; // 0.1% for regular transactions
-    this.dataTxFeeRate = 0.002; // 0.2% for data-heavy transactions
-    this.priorityFeeRate = 0.005; // 0.5% for priority transactions
+    this.regularTxFeeRate = 0.002; // 0.2% for regular transactions
+    this.dataTxFeeRate = 0.003; // 0.3% for data-heavy transactions
+    this.priorityFeeRate = 0.004; // 0.4% for priority transactions
   }
 
   /**
@@ -67,13 +68,13 @@ class FeeManager extends EventEmitter {
     let percentFee;
     switch(priority) {
       case 2: // High priority
-        percentFee = transaction.amount * this.priorityFeeRate;
+        percentFee = transaction.amount * 0.004; // 0.4%
         break;
       case 1: // Medium priority
-        percentFee = transaction.amount * this.regularTxFeeRate * 1.5;
+        percentFee = transaction.amount * 0.003; // 0.3%
         break;
       default: // Regular priority
-        percentFee = transaction.amount * this.regularTxFeeRate;
+        percentFee = transaction.amount * 0.002; // 0.2%
     }
     
     // Combine fees

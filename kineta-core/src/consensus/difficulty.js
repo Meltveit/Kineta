@@ -9,6 +9,7 @@
  */
 
 const EventEmitter = require('events');
+const { ECONOMIC_CONSTANTS } = require('../economic/economic-parameters');
 
 /**
  * Difficulty adjustment mechanism for Kineta blockchain
@@ -27,11 +28,11 @@ class DifficultyAdjuster extends EventEmitter {
   constructor(options = {}) {
     super();
     
-    this.targetBlockTime = options.targetBlockTime || 123; // 123 seconds
-    this.adjustmentInterval = options.adjustmentInterval || 1008; // ~3.5 days with 123s blocks
-    this.maxAdjustmentFactor = options.maxAdjustmentFactor || 4; // Max 4x change
-    this.emergencyAdjustmentThreshold = options.emergencyAdjustmentThreshold || 8; // 8x slower/faster for emergency
-    this.initialDifficulty = options.initialDifficulty || 4;
+    this.targetBlockTime = options.targetBlockTime || ECONOMIC_CONSTANTS.DIFFICULTY.TARGET_BLOCK_TIME;
+    this.adjustmentInterval = options.adjustmentInterval || ECONOMIC_CONSTANTS.DIFFICULTY.ADJUSTMENT_INTERVAL;
+    this.maxAdjustmentFactor = options.maxAdjustmentFactor || ECONOMIC_CONSTANTS.DIFFICULTY.MAX_ADJUSTMENT_FACTOR;
+    this.emergencyAdjustmentThreshold = options.emergencyAdjustmentThreshold || 8;
+    this.initialDifficulty = options.initialDifficulty || ECONOMIC_CONSTANTS.DIFFICULTY.INITIAL_DIFFICULTY;
     this.minimumDifficulty = options.minimumDifficulty || 1;
     
     // Working state
@@ -415,6 +416,15 @@ class DifficultyAdjuster extends EventEmitter {
     // Outside of adjustment points, difficulty should remain the same
     // (except for emergency adjustments, which are hardest to validate without full history)
     return Math.abs(difficulty - previousDifficulty) < 0.001;
+  }
+
+  /**
+   * Get the next adjustment height
+   * @param {number} currentHeight - Current block height
+   * @returns {number} - Next adjustment height
+   */
+  getNextAdjustmentHeight(currentHeight = this.lastAdjustmentHeight) {
+    return Math.ceil(currentHeight / this.adjustmentInterval) * this.adjustmentInterval;
   }
 
   /**

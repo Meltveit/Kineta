@@ -47,7 +47,7 @@ class Transaction {
   }
 
   /**
-   * Calculate transaction fee (0.1% of transaction amount)
+   * Calculate transaction fee (0.2% of transaction amount)
    * Minimum fee of 0.0001 KIN
    * @returns {number} - Calculated fee
    */
@@ -57,8 +57,8 @@ class Transaction {
       return 0;
     }
     
-    // Regular transaction fee (0.1% with minimum 0.0001 KIN)
-    const calculatedFee = this.amount * 0.001;
+    // Regular transaction fee (0.2% with minimum 0.0001 KIN)
+    const calculatedFee = this.amount * 0.002;
     return Math.max(calculatedFee, 0.0001);
   }
 
