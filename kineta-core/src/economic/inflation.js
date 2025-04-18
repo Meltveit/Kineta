@@ -1,168 +1,174 @@
 /**
- * Inflation.js - BNP-linked inflation mechanism for Kineta blockchain
+ * Inflation.js - BNP-koblet inflasjonsmekanisme for Kineta blockchain
  * 
- * Implements:
- * - GDP-linked inflation calculation
- * - Minimum inflation floor (0.25%)
- * - Inflation adjustment periods
- * - Monetary policy controls
+ * Oppdatert for ny økonomisk modell basert på global valuta i omløp (15 billioner EUR)
  */
 
 const EventEmitter = require('events');
+const { ECONOMIC_CONSTANTS } = require('./economic-parameters');
 
 /**
- * Inflation model for Kineta blockchain
- * Core inflation formula: max(0.25%, GDP-growth + 0.25%)
+ * Inflasjonsmodell for Kineta blockchain
+ * Kjerneinflasjonformel: max(0.25%, BNP-vekst + 0.25%)
  */
 class InflationModel extends EventEmitter {
   /**
-   * Initialize inflation model
-   * @param {object} options - Configuration options
-   * @param {number} options.baseRate - Minimum inflation rate (default: 0.25%)
-   * @param {number} options.adjustmentBlocks - Blocks between adjustments (default: 123000 ≈ 6 months)
-   * @param {number} options.initialInflation - Initial inflation rate (default: 2%)
-   * @param {number} options.maxInflation - Maximum inflation rate (default: 10%)
-   * @param {number} options.targetBlockTime - Target time between blocks in seconds (default: 123)
+   * Initialiserer inflasjonsmodellen
+   * @param {object} options - Konfigurasjonsvalg
+   * @param {number} options.baseRate - Minimum inflasjonsrate (standard: 0.25%)
+   * @param {number} options.adjustmentBlocks - Antall blokker mellom justeringer (standard: 123000 ≈ 6 måneder)
+   * @param {number} options.initialInflation - Startinflasjonsrate (standard: 2%)
+   * @param {number} options.maxInflation - Maksimal inflasjonsrate (standard: 10%)
+   * @param {number} options.targetBlockTime - Målrettet tid mellom blokker i sekunder (standard: 123)
    */
   constructor(options = {}) {
     super();
     
-    this.baseRate = options.baseRate !== undefined ? options.baseRate : 0.0025; // 0.25%
-    this.adjustmentBlocks = options.adjustmentBlocks || 123000; // ~6 months with 123s blocks
-    this.initialInflation = options.initialInflation !== undefined ? options.initialInflation : 0.02; // 2%
-    this.maxInflation = options.maxInflation || 0.10; // 10% cap
-    this.targetBlockTime = options.targetBlockTime || 123; // 123 seconds
+    // Bruk økonomiske konstanter med mulighet for overstyring
+    this.baseRate = options.baseRate !== undefined ? options.baseRate : ECONOMIC_CONSTANTS.INFLATION.MIN_ANNUAL_RATE;
+    this.adjustmentBlocks = options.adjustmentBlocks || ECONOMIC_CONSTANTS.INFLATION.ADJUSTMENT_INTERVAL;
+    this.initialInflation = options.initialInflation !== undefined ? options.initialInflation : 0.02;
+    this.maxInflation = options.maxInflation || 0.10;
+    this.targetBlockTime = options.targetBlockTime || ECONOMIC_CONSTANTS.BLOCK_TIME;
     
-    // Current state
+    // Gjeldende tilstand
     this.currentInflationRate = this.initialInflation;
     this.lastAdjustmentHeight = 0;
     this.gdpGrowthRate = 0;
     this.inflationHistory = [];
     
-    // Save initial inflation point
+    // Systemstarttidspunkt
+    this.genesisDate = options.genesisDate || ECONOMIC_CONSTANTS.CURRENT_DATE;
+    
+    // Lagre initialt inflasjonspunkt
     this.recordInflationPoint(0, this.initialInflation);
   }
 
   /**
-   * Calculate inflation rate based on GDP growth
-   * @param {number} gdpGrowth - Annual GDP growth rate (decimal, e.g., 0.03 for 3%)
-   * @returns {number} - Calculated inflation rate
+   * Beregn inflasjonsrate basert på BNP-vekst
+   * @param {number} gdpGrowth - Årlig BNP-vekst (desimal, f.eks. 0,03 for 3%)
+   * @returns {number} - Beregnet inflasjonsrate
    */
   calculateInflationRate(gdpGrowth) {
-    // Core formula: max(baseRate, gdpGrowth + baseRate)
-    // This ensures minimum inflation even with negative GDP growth
+    // Kjerneformel: max(baseRate, gdpGrowth + baseRate)
+    // Dette sikrer minimum inflasjon selv med negativ BNP-vekst
     let inflationRate = Math.max(this.baseRate, gdpGrowth + this.baseRate);
     
-    // Cap at maximum allowed inflation
+    // Begrens til maksimal tillatt inflasjon
     inflationRate = Math.min(inflationRate, this.maxInflation);
     
     return inflationRate;
   }
 
   /**
-   * Update the inflation model with new GDP data
-   * @param {number} gdpGrowth - Annual GDP growth rate (decimal)
-   * @param {number} blockHeight - Current block height
-   * @returns {boolean} - Whether inflation rate was updated
+   * Oppdater inflasjonsmodellen med nye BNP-data
+   * @param {number} gdpGrowth - Årlig BNP-vekst (desimal)
+   * @param {number} blockHeight - Gjeldende blokkhøyde
+   * @returns {boolean} - Om inflasjonsraten ble oppdatert
    */
   updateWithGDPData(gdpGrowth, blockHeight) {
-    // Store GDP growth rate
+    // Lagre BNP-vekstraten
     this.gdpGrowthRate = gdpGrowth;
     
-    // Check if it's time for an adjustment
+    // Sjekk om det er tid for en justering
     if (blockHeight < this.lastAdjustmentHeight + this.adjustmentBlocks) {
       return false;
     }
     
-    // Calculate new inflation rate
+    // Beregn ny inflasjonsrate
     const newInflationRate = this.calculateInflationRate(gdpGrowth);
     
-    // If inflation rate changes significantly (>0.1%), log and emit event
+    // Hvis inflasjonsraten endres vesentlig (> 0,1%), logg og send hendelse
     const change = Math.abs(newInflationRate - this.currentInflationRate);
-    if (change > 0.001) { // 0.1%
-      console.log(`Inflation adjusted from ${(this.currentInflationRate * 100).toFixed(2)}% to ${(newInflationRate * 100).toFixed(2)}% based on GDP growth of ${(gdpGrowth * 100).toFixed(2)}%`);
+    if (change > 0.001) { // 0,1%
+      console.log(`Inflasjon justert fra ${(this.currentInflationRate * 100).toFixed(2)}% til ${(newInflationRate * 100).toFixed(2)}% basert på BNP-vekst på ${(gdpGrowth * 100).toFixed(2)}%`);
       
       this.emit('inflationAdjusted', {
         oldRate: this.currentInflationRate,
         newRate: newInflationRate,
         gdpGrowth: gdpGrowth,
-        blockHeight: blockHeight
+        blockHeight: blockHeight,
+        changePercent: change * 100,
+        date: new Date()
       });
     }
     
-    // Update current inflation rate
+    // Oppdater gjeldende inflasjonsrate
     this.currentInflationRate = newInflationRate;
     this.lastAdjustmentHeight = blockHeight;
     
-    // Record this inflation point
+    // Registrer dette inflasjonspunktet
     this.recordInflationPoint(blockHeight, newInflationRate);
     
     return true;
   }
 
   /**
-   * Record inflation data point for historical tracking
-   * @param {number} blockHeight - Block height
-   * @param {number} inflationRate - Inflation rate
+   * Registrer inflasjonspunkt for historisk sporing
+   * @param {number} blockHeight - Blokkhøyde
+   * @param {number} inflationRate - Inflasjonsrate
    */
   recordInflationPoint(blockHeight, inflationRate) {
+    const dateEstimate = new Date(this.genesisDate.getTime() + (blockHeight * this.targetBlockTime * 1000));
+    
     this.inflationHistory.push({
       blockHeight,
       inflationRate,
       timestamp: Date.now(),
+      estimatedDate: dateEstimate,
       gdpGrowth: this.gdpGrowthRate
     });
     
-    // Limit history size to prevent memory issues
+    // Begrens historikken for å unngå minneproblemer
     if (this.inflationHistory.length > 100) {
       this.inflationHistory.shift();
     }
   }
 
   /**
-   * Calculate the annual issuance based on current supply and inflation rate
-   * @param {number} currentSupply - Current circulating supply
-   * @returns {number} - Annual issuance amount
+   * Beregn årlig utstedelse basert på nåværende forsyning og inflasjonsrate
+   * @param {number} currentSupply - Nåværende sirkulerende forsyning
+   * @returns {number} - Årlig utstedelsesbeløp
    */
   calculateAnnualIssuance(currentSupply) {
     return currentSupply * this.currentInflationRate;
   }
 
   /**
-   * Calculate the per-block reward based on annual issuance
-   * @param {number} currentSupply - Current circulating supply
-   * @returns {number} - Block reward
+   * Beregn blokkbelønning basert på årlig utstedelse
+   * @param {number} currentSupply - Nåværende sirkulerende forsyning
+   * @returns {number} - Blokkbelønning
    */
   calculateBlockReward(currentSupply) {
     const annualIssuance = this.calculateAnnualIssuance(currentSupply);
-    const blocksPerYear = (365 * 24 * 60 * 60) / this.targetBlockTime;
+    const blocksPerYear = ECONOMIC_CONSTANTS.BLOCKS_PER_YEAR;
     return annualIssuance / blocksPerYear;
   }
 
   /**
-   * Calculate expected supply after a given number of years
-   * @param {number} initialSupply - Initial supply
-   * @param {number} years - Number of years
-   * @param {number} inflationRate - Inflation rate (default: current rate)
-   * @returns {number} - Expected supply after specified years
+   * Beregn forventet forsyning etter et gitt antall år
+   * @param {number} initialSupply - Startforsyning
+   * @param {number} years - Antall år
+   * @param {number} inflationRate - Inflasjonsrate (standard: gjeldende rate)
+   * @returns {number} - Forventet forsyning etter angitte år
    */
   calculateExpectedSupply(initialSupply, years, inflationRate = this.currentInflationRate) {
-    // Using compound interest formula: A = P(1 + r)^t
+    // Bruker renteformelen: A = P(1 + r)^t
     return initialSupply * Math.pow(1 + inflationRate, years);
   }
 
   /**
-   * Get inflation rate at a specific block height
-   * @param {number} blockHeight - Block height
-   * @returns {number} - Inflation rate at that height
+   * Hent inflasjonsrate ved en bestemt blokkhøyde
+   * @param {number} blockHeight - Blokkhøyde
+   * @returns {number} - Inflasjonsrate ved den høyden
    */
   getInflationRateAtHeight(blockHeight) {
-    // If requested height is in the future, return current rate
+    // Hvis forespurt høyde er i fremtiden, returner gjeldende rate
     if (blockHeight >= this.lastAdjustmentHeight) {
       return this.currentInflationRate;
     }
     
-    // Search inflation history
+    // Søk i inflasjonshistorikk
     for (let i = this.inflationHistory.length - 1; i >= 0; i--) {
       const point = this.inflationHistory[i];
       if (point.blockHeight <= blockHeight) {
@@ -170,62 +176,63 @@ class InflationModel extends EventEmitter {
       }
     }
     
-    // Default to initial inflation if no history found
+    // Standard til startinflasjon hvis ingen historikk funnet
     return this.initialInflation;
   }
 
   /**
-   * Check if it's time for inflation adjustment
-   * @param {number} blockHeight - Current block height
-   * @returns {boolean} - Whether it's time for adjustment
+   * Sjekk om det er tid for inflasjonsjustering
+   * @param {number} blockHeight - Gjeldende blokkhøyde
+   * @returns {boolean} - Om det er tid for justering
    */
   isAdjustmentTime(blockHeight) {
     return blockHeight >= this.lastAdjustmentHeight + this.adjustmentBlocks;
   }
 
   /**
-   * Get next adjustment block height
-   * @returns {number} - Block height of next adjustment
+   * Hent neste justeringsblokkhøyde
+   * @returns {number} - Blokkhøyde for neste justering
    */
   getNextAdjustmentHeight() {
     return this.lastAdjustmentHeight + this.adjustmentBlocks;
   }
 
   /**
-   * Calculate time remaining until next adjustment
-   * @param {number} currentHeight - Current block height
-   * @returns {object} - Time remaining in blocks and estimated time
+   * Beregn tid til neste justering
+   * @param {number} currentHeight - Gjeldende blokkhøyde
+   * @returns {object} - Gjenværende tid i blokker og estimert tid
    */
   getTimeUntilNextAdjustment(currentHeight) {
     const blocksRemaining = this.getNextAdjustmentHeight() - currentHeight;
     const secondsRemaining = blocksRemaining * this.targetBlockTime;
+    const estimatedDate = new Date(Date.now() + secondsRemaining * 1000);
     
     return {
       blocksRemaining,
       secondsRemaining,
       daysRemaining: secondsRemaining / (24 * 60 * 60),
-      estimatedDate: new Date(Date.now() + secondsRemaining * 1000)
+      estimatedDate
     };
   }
 
   /**
-   * Calculate the effective inflation rate given network hashrate changes
-   * @param {number} targetBlockTime - Target time between blocks in seconds
-   * @param {number} actualBlockTime - Actual average time between blocks
-   * @returns {number} - Effective annual inflation rate
+   * Beregn den effektive inflasjonsraten gitt endringer i nettverkshashrate
+   * @param {number} targetBlockTime - Målrettet tid mellom blokker i sekunder
+   * @param {number} actualBlockTime - Faktisk gjennomsnittlig tid mellom blokker
+   * @returns {number} - Effektiv årlig inflasjonsrate
    */
   calculateEffectiveInflation(targetBlockTime, actualBlockTime) {
-    // If blocks are being mined faster than target, effective inflation is higher
+    // Hvis blokker utvunnet raskere enn målet, er effektiv inflasjon høyere
     const ratio = targetBlockTime / actualBlockTime;
     return this.currentInflationRate * ratio;
   }
 
   /**
-   * Generate inflation forecast based on GDP growth scenarios
-   * @param {number} currentSupply - Current circulating supply
-   * @param {number} years - Number of years to forecast
-   * @param {object} scenarios - GDP growth scenarios
-   * @returns {object} - Inflation and supply forecasts for each scenario
+   * Generer inflasjonsprognose basert på BNP-vekstscenarier
+   * @param {number} currentSupply - Nåværende sirkulerende forsyning
+   * @param {number} years - Antall år å prognostisere
+   * @param {object} scenarios - BNP-vekstscenarier
+   * @returns {object} - Inflasjons- og forsyningsprognoser for hvert scenario
    */
   generateInflationForecast(currentSupply, years = 5, scenarios = {
     low: -0.01,
@@ -260,8 +267,52 @@ class InflationModel extends EventEmitter {
   }
 
   /**
-   * Get inflation statistics and history
-   * @returns {object} - Inflation statistics
+   * Simuler langsiktig inflasjonseffekt gitt BNP-prognoser
+   * @param {number} currentSupply - Nåværende forsyning
+   * @param {number} years - Antall år å simulere
+   * @param {Function} gdpProjectionFunc - Funksjon som returnerer forventet BNP-vekst for et gitt år
+   * @returns {object} - Langsiktig inflasjonssimulering
+   */
+  simulateLongTermInflation(currentSupply, years = 30, gdpProjectionFunc = null) {
+    // Standard BNP-prognose hvis ingen er gitt
+    const getGdpGrowth = gdpProjectionFunc || ((year) => {
+      // Standard antagelse: 2,5% vekst med sykliske svingninger
+      return 0.025 + 0.015 * Math.sin(year / 5 * Math.PI);
+    });
+    
+    const simulation = [];
+    let simulatedSupply = currentSupply;
+    
+    for (let year = 1; year <= years; year++) {
+      const gdpGrowth = getGdpGrowth(year);
+      const inflationRate = this.calculateInflationRate(gdpGrowth);
+      const newSupply = simulatedSupply * (1 + inflationRate);
+      const yearlyIssuance = newSupply - simulatedSupply;
+      
+      simulation.push({
+        year,
+        gdpGrowth,
+        inflationRate,
+        supply: newSupply,
+        yearlyIssuance,
+        issuancePercent: (yearlyIssuance / simulatedSupply) * 100
+      });
+      
+      simulatedSupply = newSupply;
+    }
+    
+    return {
+      initialSupply: currentSupply,
+      finalSupply: simulatedSupply,
+      years,
+      simulation,
+      totalGrowthPercent: ((simulatedSupply / currentSupply) - 1) * 100
+    };
+  }
+
+  /**
+   * Hent inflasjonsstatistikk og historikk
+   * @returns {object} - Inflasjonsstatistikk
    */
   getInflationStats() {
     return {
@@ -272,13 +323,28 @@ class InflationModel extends EventEmitter {
       nextAdjustmentHeight: this.getNextAdjustmentHeight(),
       adjustmentInterval: this.adjustmentBlocks,
       inflationHistory: this.inflationHistory,
-      maxInflation: this.maxInflation
+      maxInflation: this.maxInflation,
+      estimatedInflationCurrentYear: this.currentInflationRate * 100,
+      historicalAverage: this.calculateAverageInflation()
     };
+  }
+  
+  /**
+   * Beregn gjennomsnittlig inflasjonsrate basert på historikk
+   * @returns {number} - Gjennomsnittlig inflasjonsrate
+   */
+  calculateAverageInflation() {
+    if (this.inflationHistory.length === 0) {
+      return this.initialInflation;
+    }
+    
+    const sum = this.inflationHistory.reduce((total, point) => total + point.inflationRate, 0);
+    return sum / this.inflationHistory.length;
   }
 
   /**
-   * Serialize inflation model state
-   * @returns {object} - Serialized state
+   * Serialiser inflasjonsmodelltilstand
+   * @returns {object} - Serialisert tilstand
    */
   serialize() {
     return {
@@ -290,14 +356,15 @@ class InflationModel extends EventEmitter {
       currentInflationRate: this.currentInflationRate,
       lastAdjustmentHeight: this.lastAdjustmentHeight,
       gdpGrowthRate: this.gdpGrowthRate,
-      inflationHistory: this.inflationHistory
+      inflationHistory: this.inflationHistory,
+      genesisDate: this.genesisDate.toISOString()
     };
   }
 
   /**
-   * Create inflation model from serialized state
-   * @param {object} data - Serialized inflation model
-   * @returns {InflationModel} - Reconstructed inflation model
+   * Opprett inflasjonsmodell fra serialisert tilstand
+   * @param {object} data - Serialisert inflasjonsmodell
+   * @returns {InflationModel} - Rekonstruert inflasjonsmodell
    */
   static deserialize(data) {
     const model = new InflationModel({
@@ -305,7 +372,8 @@ class InflationModel extends EventEmitter {
       adjustmentBlocks: data.adjustmentBlocks,
       initialInflation: data.initialInflation,
       maxInflation: data.maxInflation,
-      targetBlockTime: data.targetBlockTime
+      targetBlockTime: data.targetBlockTime,
+      genesisDate: new Date(data.genesisDate)
     });
     
     model.currentInflationRate = data.currentInflationRate;
